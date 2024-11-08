@@ -81,7 +81,7 @@ print(f"Matched expected output: {torch.allclose(attn, expected_attn, atol=1e-6)
 # ## Benchmark multihead attention
 
 # %%
-from transformer import my_attn_QKV_multihead
+from transformer import my_attn_QKV_multihead, MyMultiheadAttention
 print("="*60)
 print("Benchmark multihead attention")
 
@@ -97,3 +97,107 @@ attn = my_attn_QKV_multihead(Q, K, V, num_heads=2)
 print("No error. Pass.")
 
 # %%
+print("\nSelf attention case")
+
+Q = torch.randn(32, 10, 8)
+K = torch.randn(32, 20, 8)
+V = torch.randn(32, 20, 8)
+
+print("Input shape")
+print(f"\tQ: {Q.shape}")
+print(f"\tK: {K.shape}")
+print(f"\tV: {V.shape}")
+
+mha = torch.nn.MultiheadAttention(8, 4, bias=False, batch_first=True)
+my_mha = MyMultiheadAttention(8, 4, bias=False, batch_first=True)
+my_mha.load_from_pytorch_module(mha)
+
+attn = my_mha(Q, K, V)
+expected_attn = mha(Q, K, V)[0]
+
+print("Output shape")
+print(f"\t   {attn.shape}")
+print(f"Matched expected shape: {attn.shape == expected_attn.shape}")
+
+print("Error of output", (attn - expected_attn).abs().max().item())
+print(f"Matched expected output: {torch.allclose(attn, expected_attn, atol=1e-6)}")
+
+# %%
+print("\nCross attention case")
+
+Q = torch.randn(32, 10, 12)
+K = torch.randn(32, 20, 8)
+V = torch.randn(32, 20, 16)
+
+print("Input shape")
+print(f"\tQ: {Q.shape}")
+print(f"\tK: {K.shape}")
+print(f"\tV: {V.shape}")
+
+mha = torch.nn.MultiheadAttention(12, 4, bias=False, batch_first=True, kdim=8, vdim=16)
+my_mha = MyMultiheadAttention(12, 4, bias=False, batch_first=True, xk_dim=8, xv_dim=16)
+my_mha.load_from_pytorch_module(mha)
+
+attn = my_mha(Q, K, V)
+expected_attn = mha(Q, K, V)[0]
+
+print("Output shape")
+print(f"\t   {attn.shape}")
+print(f"Matched expected shape: {attn.shape == expected_attn.shape}")
+
+print("Error of output", (attn - expected_attn).abs().max().item())
+print(f"Matched expected output: {torch.allclose(attn, expected_attn, atol=1e-6)}")
+
+# %%
+print("\nCross attention case (with boolean mask)")
+
+Q = torch.randn(32, 10, 12)
+K = torch.randn(32, 20, 8)
+V = torch.randn(32, 20, 16)
+mask = torch.randn(10, 20) > 0
+
+print("Input shape")
+print(f"\tQ: {Q.shape}")
+print(f"\tK: {K.shape}")
+print(f"\tV: {V.shape}")
+
+mha = torch.nn.MultiheadAttention(12, 4, bias=False, batch_first=True, kdim=8, vdim=16)
+my_mha = MyMultiheadAttention(12, 4, bias=False, batch_first=True, xk_dim=8, xv_dim=16)
+my_mha.load_from_pytorch_module(mha)
+
+attn = my_mha(Q, K, V, mask=mask)
+expected_attn = mha(Q, K, V, attn_mask=mask)[0]
+
+print("Output shape")
+print(f"\t   {attn.shape}")
+print(f"Matched expected shape: {attn.shape == expected_attn.shape}")
+
+print("Error of output", (attn - expected_attn).abs().max().item())
+print(f"Matched expected output: {torch.allclose(attn, expected_attn, atol=1e-6)}")
+
+# %%
+print("\nCross attention case (with float mask)")
+
+Q = torch.randn(32, 10, 12)
+K = torch.randn(32, 20, 8)
+V = torch.randn(32, 20, 16)
+mask = torch.randn(10, 20)
+
+print("Input shape")
+print(f"\tQ: {Q.shape}")
+print(f"\tK: {K.shape}")
+print(f"\tV: {V.shape}")
+
+mha = torch.nn.MultiheadAttention(12, 4, bias=False, batch_first=True, kdim=8, vdim=16)
+my_mha = MyMultiheadAttention(12, 4, bias=False, batch_first=True, xk_dim=8, xv_dim=16)
+my_mha.load_from_pytorch_module(mha)
+
+attn = my_mha(Q, K, V, mask=mask)
+expected_attn = mha(Q, K, V, attn_mask=mask)[0]
+
+print("Output shape")
+print(f"\t   {attn.shape}")
+print(f"Matched expected shape: {attn.shape == expected_attn.shape}")
+
+print("Error of output", (attn - expected_attn).abs().max().item())
+print(f"Matched expected output: {torch.allclose(attn, expected_attn, atol=1e-6)}")
