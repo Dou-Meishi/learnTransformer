@@ -76,3 +76,24 @@ print(f"Matched expected shape: {attn.shape == expected_attn.shape}")
 
 print("Error of output", (attn - expected_attn).abs().max().item())
 print(f"Matched expected output: {torch.allclose(attn, expected_attn, atol=1e-6)}")
+
+# %% [markdown]
+# ## Benchmark multihead attention
+
+# %%
+from transformer import my_attn_QKV_multihead
+print("="*60)
+print("Benchmark multihead attention")
+
+# %%
+print("\nTest spliting heads")
+
+Q = torch.randn(32, 10, 6)
+K = torch.randn(32, 20, 6)
+V = torch.randn(32, 20, 8)
+
+attn = my_attn_QKV_multihead(Q, K, V, num_heads=2)
+
+print("No error. Pass.")
+
+# %%
