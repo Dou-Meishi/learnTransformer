@@ -18,6 +18,9 @@ def my_attn_QKV(
     Returns:
         Tensor: Output tensor of shape (..., seq_N, d_v).
     """
+    assert Q.size(-1) == K.size(-1)
+    assert K.size(-2) == V.size(-2)
+
     if mask is None:
         mask = torch.zeros(Q.size(-2), K.size(-2), dtype=Q.dtype, device=Q.device)
     if mask.dtype == torch.bool:
