@@ -105,3 +105,108 @@ def my_attn_QKV_multihead(
             assert mask.shape[-2:] == tuple((Q.size(-2), Q.size(-2)))
 
     return out
+
+
+class MyMultiheadAttention(torch.nn.Module):
+    """Implement multihead attention layer."""
+
+    def __init__(
+        self,
+        xq_dim: int,
+        num_heads: int,
+        xk_dim: int | None = None,
+        xv_dim: int | None = None,
+        bias: bool = False,
+        batch_first: bool = True,
+    ):
+        """Initialize the multihead attention layer.
+
+        Args:
+            xq_dim (int): Dimension of the Query tensor.
+            num_heads (int): Number of attention heads to use.
+            xk_dim (int, optional): Dimension of the Key tensor (default is equal to xq_dim).
+            xv_dim (int, optional): Dimension of the Value tensor (default is equal to xq_dim).
+            bias (bool): Whether to include bias terms (not implemented yet).
+            batch_first (bool): Specify whether the input is batch-first (not implemented yet).
+        """
+        super().__init__()
+
+        assert xq_dim % num_heads == 0
+
+        if xk_dim is None:
+            xk_dim = xq_dim
+        if xv_dim is None:
+            xv_dim = xq_dim
+        if bias is True:
+            raise NotImplementedError
+        if batch_first is False:
+            raise NotImplementedError
+
+        self.num_heads = num_heads
+
+        self.linear_Q = torch.nn.Linear(xq_dim, xq_dim, bias=bias)
+        self.linear_K = torch.nn.Linear(xk_dim, xq_dim, bias=bias)
+        self.linear_V = torch.nn.Linear(xv_dim, xq_dim, bias=bias)
+        self.final_linear = torch.nn.Linear(xq_dim, xq_dim, bias=bias)
+
+        # reinitialize parameters with xavier_normal if necessary
+        # see https://pytorch.org/docs/stable/_modules/torch/nn/modules/activation.html#MultiheadAttention
+
+    def load_from_pytorch_module(self, model: torch.nn.MultiheadAttention):
+        """Load weights from a PyTorch model"""
+        if model._qkv_same_embed_dim:
+            Wq, Wk, Wv = torch.split(model.in_proj_weight, 3 * [model.embed_dim])
+            self.load_state_dict(
+                {
+                    "linear_Q.weight": Wq,
+                    "linear_K.weight": Wk,
+                    "linear_V.weight": Wv,
+                    "final_linear.weight": model.out_proj.weight,
+                }
+            )
+        else:
+            self.load_state_dict(
+                {
+                    "linear_Q.weight": model.q_proj_weight,
+                    "linear_K.weight": model.k_proj_weight,
+                    "linear_V.weight": model.v_proj_weight,
+                    "final_linear.weight": model.out_proj.weight,
+                }
+            )
+
+    def forward(
+        self,
+        xq: torch.Tensor,
+        xk: torch.Tensor,
+        xv: torch.Tensor,
+        mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Perform forward pass for multihead attention.
+
+        Args:
+            xq (Tensor): Query tensor of shape (batch_size, seq_len_N, xq_dim).
+            xk (Tensor): Key tensor of shape (batch_size, seq_len_M, xk_dim).
+            xv (Tensor): Value tensor of shape (batch_size, seq_len_M, xv_dim).
+            mask (Tensor, optional): Optional mask tensor of shape (...,
+                seq_len_N, seq_len_M).  If a boolean tensor, True elements are
+                replaced with -inf and False with 0 before addition to the
+                similarity.  If not boolean, it's directly added to the
+                similarity.
+
+        Note:
+        The mask here differs from `my_attn_QKV`. If mask is boolean, ~mask
+        is passed to `my_attn_QKV`. If not boolean, it's passed directly.
+
+        Returns:
+            Tensor: Output tensor of shape (batch_size, seq_len_N, xq_dim).
+        """
+        Q = self.linear_Q(xq)
+        K = self.linear_K(xk)
+        V = self.linear_V(xv)
+
+        if mask is not None and mask.dtype == torch.bool:
+            # see the docstring for explanation.
+            mask = ~mask
+        attn = my_attn_QKV_multihead(Q, K, V, mask=mask, num_heads=self.num_heads)
+
+        return self.final_linear(attn)
