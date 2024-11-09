@@ -210,3 +210,91 @@ class MyMultiheadAttention(torch.nn.Module):
         attn = my_attn_QKV_multihead(Q, K, V, mask=mask, num_heads=self.num_heads)
 
         return self.final_linear(attn)
+
+
+class MyTransformerEncoderLayer(torch.nn.Module):
+    """Implement TransformerEncoderLayer."""
+
+    def __init__(
+        self,
+        d_model: int,
+        num_heads: int = 1,
+        fc_hidden_dim: int = 2048,
+        dropout: float = 0.0,
+        norm_first: bool = True,
+        batch_first: bool = True,
+        bias: bool = False,
+    ):
+        """Initialize the transformer encoder layer.
+
+        Args:
+            d_model (int): The input and output feature dimension.
+            num_heads (int): The number of attention heads. Default is 1.
+            fc_hidden_dim (int): The hidden dimension for the feedforward neural
+                network. Default is 2048.
+            dropout (float): Not implemented in this version. Default is 0.0.
+            norm_first (bool): Whether to apply layer normalization first. Default is True.
+            batch_first (bool): Whether input and output tensors are batch first. Default is True.
+            bias (bool): Whether to include bias in linear layers. Default is False.
+
+        Note:
+            Dropout is not implemented in this version.
+            Layer normalization is applied first.
+            Input and output are assumed to be in batch first format.
+        """
+        super().__init__()
+
+        if dropout > 0.0:
+            raise NotImplementedError
+        if norm_first is not True:
+            raise NotImplementedError
+        if batch_first is not True:
+            raise NotImplementedError
+        if bias is not False:
+            raise NotImplementedError
+
+        self.self_attn = MyMultiheadAttention(
+            d_model, num_heads, bias=bias, batch_first=batch_first
+        )
+        self.mlp = torch.nn.Sequential(
+            torch.nn.Linear(d_model, fc_hidden_dim, bias=bias),
+            torch.nn.ReLU(),
+            torch.nn.Linear(fc_hidden_dim, d_model, bias=bias),
+        )
+        self.norm1 = torch.nn.LayerNorm(d_model, bias=bias)
+        self.norm2 = torch.nn.LayerNorm(d_model, bias=bias)
+
+    def forward(
+        self, x: torch.Tensor, mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        """
+        Forward pass of the Transformer Encoder Layer.
+
+        Args:
+        - x (torch.Tensor): Input tensor with shape (batch_size, seq_len, d_model).
+        - mask (torch.Tensor, optional): Mask tensor with shape (seq_len, seq_len) or None.
+
+        Returns:
+        - torch.Tensor: Transformed output tensor with shape (batch_size, seq_len, d_model).
+        """
+        y = self.norm1(x)
+        y = self.self_attn(y, y, y, mask=mask)
+        x = x + y
+
+        y = self.norm2(x)
+        y = self.mlp(y)
+        x = x + y
+
+        return x
+
+    def load_from_pytorch_module(self, model: torch.nn.TransformerEncoderLayer):
+        """Load weights from a PyTorch model"""
+        self.self_attn.load_from_pytorch_module(model.self_attn)
+        self.mlp.load_state_dict(
+            {
+                "0.weight": model.linear1.weight,
+                "2.weight": model.linear2.weight,
+            }
+        )
+        self.norm1.load_state_dict(model.norm1.state_dict())
+        self.norm2.load_state_dict(model.norm2.state_dict())
