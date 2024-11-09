@@ -98,3 +98,35 @@ class MyBatchNorm2d(torch.nn.Module):
                 "running_var": model.running_var,
             }
         )
+
+
+class MyLayerNorm(torch.nn.Module):
+    """Implement LayerNorm."""
+
+    def __init__(self, normalized_shape, eps=1e-5):
+        super().__init__()
+        self.eps = eps
+
+        self.weight = torch.nn.Parameter(torch.ones(normalized_shape))
+        self.bias = torch.nn.Parameter(torch.zeros(normalized_shape))
+
+        if isinstance(normalized_shape, int):
+            self._sum_dims = -1
+        else:
+            self._sum_dims = tuple(range(-len(normalized_shape), 0))
+
+    def forward(self, x):
+        mean = x.mean(dim=self._sum_dims, keepdim=True)
+        var = x.var(dim=self._sum_dims, keepdim=True, unbiased=False)
+        x = (x - mean) / (var + self.eps).sqrt()
+        x = x * self.weight + self.bias
+        return x
+
+    def load_from_pytorch_module(self, model: torch.nn.LayerNorm):
+        """Load weights from a PyTorch module."""
+        self.load_state_dict(
+            {
+                "weight": model.weight,
+                "bias": model.bias,
+            }
+        )
