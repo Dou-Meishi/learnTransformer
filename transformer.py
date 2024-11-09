@@ -102,7 +102,7 @@ def my_attn_QKV_multihead(
 
         # mask shape: [..., 1, seq_len_N, seq_len_N]
         if mask is not None:
-            assert mask.shape[-2:] == tuple((Q.size(-2), Q.size(-2)))
+            assert mask.shape[-2:] == tuple((Q.size(-2), K.size(-2)))
 
     return out
 
