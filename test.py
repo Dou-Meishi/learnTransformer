@@ -203,6 +203,45 @@ print("Error of output", (attn - expected_attn).abs().max().item())
 print(f"Matched expected output: {torch.allclose(attn, expected_attn, atol=1e-6)}")
 
 # %% [markdown]
+# ## Benchmark transformer encoder layer
+
+# %%
+from transformer import MyTransformerEncoderLayer
+print("="*60)
+print("Benchmark transformer encoder layer")
+
+# %%
+print("\nwithout mask")
+
+x = torch.randn(64, 10, 16)
+
+encoder_layer = nn.TransformerEncoderLayer(16, 4, 32, dropout=0., batch_first=True, norm_first=True, bias=False)
+my_encoder_layer = MyTransformerEncoderLayer(16, 4, 32, 0., batch_first=True, norm_first=True, bias=False)
+my_encoder_layer.load_from_pytorch_module(encoder_layer)
+
+y = my_encoder_layer(x)
+expected_y = encoder_layer(x)
+
+print("Error of output", (y - expected_y).abs().max().item())
+print(f"Matched expected output: {torch.allclose(y, expected_y, atol=1e-6)}")
+
+# %%
+print("\nwith random float mask")
+
+x = torch.randn(64, 10, 16)
+mask = torch.randn(10, 10) > 0
+
+encoder_layer = nn.TransformerEncoderLayer(16, 4, 32, dropout=0., batch_first=True, norm_first=True, bias=False)
+my_encoder_layer = MyTransformerEncoderLayer(16, 4, 32, 0., batch_first=True, norm_first=True, bias=False)
+my_encoder_layer.load_from_pytorch_module(encoder_layer)
+
+y = my_encoder_layer(x, mask=mask)
+expected_y = encoder_layer(x, src_mask=mask)
+
+print("Error of output", (y - expected_y).abs().max().item())
+print(f"Matched expected output: {torch.allclose(y, expected_y, atol=1e-6)}")
+
+# %% [markdown]
 # ## Appendix: Benchamark Batchnorm
 
 # %%
