@@ -206,7 +206,7 @@ print(f"Matched expected output: {torch.allclose(attn, expected_attn, atol=1e-6)
 # ## Appendix: Benchamark Batchnorm
 
 # %%
-from normalization import MyBatchNorm1d
+from normalization import MyBatchNorm1d, MyBatchNorm2d
 print("="*60)
 print("Benchmark batch normalization") 
 
@@ -236,6 +236,39 @@ my_batch_norm.train(False)
 for _ in range(100):
     # predict a sample
     x = torch.randn(1, 5)
+    y = my_batch_norm(x)
+    expected_y = batch_norm(x)
+
+    assert torch.allclose(y, expected_y, atol=1e-6), f"{(y - expected_y).abs().max()}"
+
+print("No error. Pass.")
+
+# %%
+print("\nBatchNorm2d.")
+
+batch_norm = nn.BatchNorm2d(5)
+my_batch_norm = MyBatchNorm2d(5)
+my_batch_norm.load_from_pytorch_module(batch_norm)
+
+print("Training phase.")
+batch_norm.train(True)
+my_batch_norm.train(True)
+for _ in range(100):
+    # train a batch
+    x = torch.randn(16, 5, 32, 32)
+    y = my_batch_norm(x)
+    expected_y = batch_norm(x)
+
+    assert torch.allclose(y, expected_y, atol=1e-6), f"{(y - expected_y).abs().max()}"
+
+print("No error. Pass.")
+
+print("Evaluation phase.")
+batch_norm.train(False)
+my_batch_norm.train(False)
+for _ in range(100):
+    # predict a sample
+    x = torch.randn(1, 5, 32, 32)
     y = my_batch_norm(x)
     expected_y = batch_norm(x)
 
