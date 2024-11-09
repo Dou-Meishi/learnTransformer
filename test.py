@@ -275,3 +275,49 @@ for _ in range(100):
     assert torch.allclose(y, expected_y, atol=1e-6), f"{(y - expected_y).abs().max()}"
 
 print("No error. Pass.")
+
+# %% [markdown]
+# ## Appendix: Benchmark Layernorm
+
+# %%
+from normalization import MyLayerNorm
+print("="*60)
+print("Benchmark layer normalization") 
+
+# %%
+print("\n1d case.")
+
+layer_norm = nn.LayerNorm(5)
+my_layer_norm = MyLayerNorm(5)
+my_layer_norm.load_from_pytorch_module(layer_norm)
+
+layer_norm.train(True)
+my_layer_norm.train(True)
+for _ in range(100):
+    # train a batch
+    x = torch.randn(16, 5)
+    y = my_layer_norm(x)
+    expected_y = layer_norm(x)
+
+    assert torch.allclose(y, expected_y, atol=1e-6), f"{(y - expected_y).abs().max()}"
+
+print("No error. Pass.")
+
+# %%
+print("\n2d case.")
+
+layer_norm = nn.LayerNorm((8, 5))
+my_layer_norm = MyLayerNorm((8, 5))
+my_layer_norm.load_from_pytorch_module(layer_norm)
+
+layer_norm.train(True)
+my_layer_norm.train(True)
+for _ in range(100):
+    # train a batch
+    x = torch.randn(16, 8, 5)
+    y = my_layer_norm(x)
+    expected_y = layer_norm(x)
+
+    assert torch.allclose(y, expected_y, atol=1e-6), f"{(y - expected_y).abs().max()}"
+
+print("No error. Pass.")
